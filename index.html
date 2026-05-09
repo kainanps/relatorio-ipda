@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Relatório Financeiro da Igreja</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --primary-light: #34495e;
+            --addition: #27ae60;      
+            --deduction: #e74c3c;     
+            --readonly-bg: #e2e8f0;   
+            --bg: #ecf0f1;
+            --card-bg: #ffffff;
+            --text: #2c3e50;
+            --border: #e0e0e0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 400px;
+            min-height: 100vh;
+            background-color: var(--bg);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 16px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .content {
+            flex: 1;
+            padding: 16px 12px;
+            padding-bottom: 90px;
+        }
+
+        .accordion-item {
+            background: var(--card-bg);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border-left: 4px solid transparent;
+        }
+
+        .is-entrada { border-left-color: var(--addition); }
+        .is-saida { border-left-color: var(--deduction); }
+        .is-pos-saida { border-left-color: var(--primary); background-color: #f8f9fa; }
+
+        .accordion-header {
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+
+        .header-content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            font-weight: 400;
+        }
+        
+        .checkbox-wrapper input[type="checkbox"] {
+            transform: scale(1.2);
+        }
+
+        .accordion-header::after {
+            content: '▼';
+            font-size: 0.8rem;
+            transition: transform 0.3s ease;
+        }
+
+        .accordion-item.active .accordion-header::after {
+            transform: rotate(180deg);
+        }
+
+        .accordion-body {
+            display: none;
+            padding: 0 16px 16px 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .accordion-item.active .accordion-body {
+            display: block;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .row:last-child { border-bottom: none; }
+
+        .label-col {
+            flex: 1;
+            font-weight: 600;
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        .qty-col {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex: 1.2;
+            justify-content: center;
+        }
+
+        .qty-btn {
+            background: var(--primary-light);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            width: 32px;
+            height: 32px;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .qty-input {
+            width: 45px;
+            height: 32px;
+            text-align: center;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
+            background: #fff;
+        }
+
+        .val-col {
+            flex: 1.2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+        }
+
+        .val-col span {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .val-input {
+            width: 85px;
+            height: 32px;
+            text-align: right;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 6px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .is-entrada .val-input { color: var(--addition); }
+        .is-saida .val-input { color: var(--deduction); }
+        
+        input[readonly] {
+            background-color: var(--readonly-bg);
+            border-color: transparent;
+            color: var(--primary);
+        }
+        .is-pos-saida .val-input { color: var(--primary); font-weight: 700; }
+        .text-danger { color: var(--deduction) !important; }
+
+        input:focus {
+            outline: 2px solid var(--primary);
+            border-color: transparent;
+        }
+
+        /* --- Seção de Totais (Atualizada para múltiplas linhas) --- */
+        .section-total {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 16px;
+            border-top: 2px solid var(--border);
+        }
+
+        .total-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .total-line.main {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .total-line.sub {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #7f8c8d;
+        }
+
+        .is-entrada .total-line.main { color: var(--addition); }
+        .is-saida .total-line.main { color: var(--deduction); }
+        .is-pos-saida .total-line.main { color: var(--primary); }
+
+        .btn-add-saida {
+            width: 100%;
+            padding: 14px;
+            background-color: transparent;
+            border: 2px dashed var(--primary-light);
+            color: var(--primary-light);
+            font-weight: 600;
+            border-radius: 12px;
+            margin-top: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn-add-saida:active { background-color: #e2e8f0; }
+
+        .total-bar {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            max-width: 400px;
+            background: var(--primary);
+            color: white;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
+            z-index: 10;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .total-label { font-size: 1rem; font-weight: 500; }
+        .total-value { font-size: 1.4rem; font-weight: 700; color: var(--addition); }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>Caixa da Igreja</header>
+
+    <div class="content" id="main-content">
+        <!-- Renderizado via JS -->
+    </div>
+
+    <div class="total-bar">
+        <div class="total-row">
+            <div class="total-label">Saldo Final (Pós Saídas):</div>
+            <div class="total-value" id="grand-total">R$ 0,00</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const BILLS = [100, 50, 20, 10, 5, 2];
+
+    const coreSections = [
+        { id: 'entrada_previa', title: 'Entrada Prévia (Rascunho)', type: 'entrada', editable: true, active: true },
+        { id: 'entrada_pos', title: 'Entrada Pós Saídas (Final)', type: 'pos-saida', editable: false, active: true },
+        { id: 'dizimo', title: 'Dízimo', type: 'saida', editable: true, active: false },
+        { id: 'missoes', title: 'Culto de Missões', type: 'saida', editable: true, active: false },
+        { id: 'fundacao', title: 'Fundação Reviver', type: 'saida', editable: true, active: false },
+        { id: 'reviver_help', title: 'Reviver Help', type: 'saida', editable: true, active: false }
+    ];
+
+    let dynamicOutId = 0;
+
+    function init() {
+        const container = document.getElementById('main-content');
+        let html = '';
+
+        coreSections.forEach(sec => {
+            html += generateSectionHTML(sec);
+        });
+
+        html += `<div id="custom-saidas"></div>`;
+        html += `<button class="btn-add-saida" onclick="addCustomSaida()">+ Adicionar Nova Saída</button>`;
+        
+        container.innerHTML = html;
+        calcAll(); 
+    }
+
+    function generateSectionHTML(config) {
+        const { id, title, type, editable, active } = config;
+        const isSaida = type === 'saida';
+        
+        let html = `
+        <div class="accordion-item is-${type} ${active ? 'active' : ''}" id="sec-${id}" data-type="${type}">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                <div class="header-content">
+                    <span class="section-title">${title}</span>
+                    ${isSaida ? `
+                    <div class="checkbox-wrapper" onclick="event.stopPropagation()">
+                        <input type="checkbox" id="sep-${id}" class="sep-checkbox" onchange="calcAll()">
+                        <label for="sep-${id}">Já separado (Não descontar da entrada)</label>
+                    </div>` : ''}
+                </div>
+            </div>
+            <div class="accordion-body">
+        `;
+
+        BILLS.forEach(b => {
+            html += `
+            <div class="row" data-bill="${b}">
+                <div class="label-col">R$ ${b}</div>
+                <div class="qty-col">
+                    ${editable ? `<button class="qty-btn" onclick="changeQty(this, -1)">-</button>` : ''}
+                    <input type="number" class="qty-input" value="" placeholder="0" 
+                           ${!editable ? 'readonly' : 'oninput="onQtyInput(this)"'}>
+                    ${editable ? `<button class="qty-btn" onclick="changeQty(this, 1)">+</button>` : ''}
+                </div>
+                <div class="val-col">
+                    <span>R$</span>
+                    <input type="text" class="val-input" value="0,00" data-cents="0" readonly>
+                </div>
+            </div>`;
+        });
+
+        html += `
+            <div class="row" data-bill="variados">
+                <div class="label-col">Variados</div>
+                <div class="qty-col" style="visibility: hidden;"></div>
+                <div class="val-col">
+                    <span>R$</span>
+                    <input type="text" inputmode="numeric" class="val-input variados-input" value="0,00" data-cents="0" 
+                           ${!editable ? 'readonly' : 'oninput="onMonetaryInput(this)"'}>
+                </div>
+            </div>`;
+
+        // Campos Extras APENAS para Saídas
+        if (isSaida) {
+            html += `
+            <div class="row" data-bill="oferta" style="background-color: #f8fdf9; margin: 0 -16px; padding: 12px 16px;">
+                <div class="label-col" style="font-size: 0.9rem; color: var(--addition);">Oferta na Saída (Devolução)</div>
+                <div class="qty-col" style="visibility: hidden;"></div>
+                <div class="val-col">
+                    <span style="color: var(--addition);">R$</span>
+                    <input type="text" inputmode="numeric" class="val-input oferta-input" value="0,00" data-cents="0" 
+                           oninput="onMonetaryInput(this)" style="color: var(--addition); border-color: var(--addition);">
+                </div>
+            </div>
+            <div class="row" data-bill="excedente" style="background-color: #fdf8f8; margin: 0 -16px; padding: 12px 16px;">
+                <div class="label-col" style="font-size: 0.9rem; color: var(--deduction);">Excedente (Arredondamento)</div>
+                <div class="qty-col" style="visibility: hidden;"></div>
+                <div class="val-col">
+                    <span style="color: var(--deduction);">R$</span>
+                    <input type="text" inputmode="numeric" class="val-input excedente-input" value="0,00" data-cents="0" 
+                           oninput="onMonetaryInput(this)" style="color: var(--deduction); border-color: var(--deduction);">
+                </div>
+            </div>`;
+        }
+
+        // Seção de Totais Dupla para Saídas, Simples para os demais
+        html += `
+            <div class="section-total">
+                ${isSaida ? `
+                <div class="total-line sub">
+                    <span>Subtotal (Registrado):</span>
+                    <span id="subtotal-${id}">R$ 0,00</span>
+                </div>
+                <div class="total-line main">
+                    <span>Descontado (Real):</span>
+                    <span id="total-${id}">R$ 0,00</span>
+                </div>
+                ` : `
+                <div class="total-line main">
+                    <span>Total da Sessão:</span>
+                    <span id="total-${id}">R$ 0,00</span>
+                </div>
+                `}
+            </div>
+        `;
+
+        html += `</div></div>`;
+        return html;
+    }
+
+    function toggleAccordion(element) {
+        element.parentElement.classList.toggle('active');
+    }
+
+    function addCustomSaida() {
+        const title = prompt("Digite o nome da nova saída:");
+        if (!title) return;
+
+        dynamicOutId++;
+        const id = `extra_${dynamicOutId}`;
+        const html = generateSectionHTML({ id, title, type: 'saida', editable: true, active: true });
+        
+        document.getElementById('custom-saidas').insertAdjacentHTML('beforeend', html);
+    }
+
+    function formatCentsToMask(cents) {
+        let isNegative = cents < 0;
+        let str = Math.abs(cents).toString().padStart(3, '0');
+        let val = str.slice(0, -2) + ',' + str.slice(-2);
+        return isNegative ? '-' + val : val;
+    }
+
+    function changeQty(btn, delta) {
+        const row = btn.closest('.row');
+        const inputQty = row.querySelector('.qty-input');
+        
+        let currentQty = parseInt(inputQty.value, 10) || 0;
+        let newQty = currentQty + delta;
+        if (newQty < 0) newQty = 0;
+        
+        inputQty.value = newQty === 0 ? '' : newQty;
+        onQtyInput(inputQty);
+    }
+
+    function onQtyInput(inputQty) {
+        const row = inputQty.closest('.row');
+        const billVal = parseInt(row.dataset.bill, 10);
+        const qty = parseInt(inputQty.value, 10) || 0;
+        
+        const totalCents = qty * (billVal * 100); 
+        
+        const valInput = row.querySelector('.val-input');
+        valInput.dataset.cents = totalCents;
+        valInput.value = formatCentsToMask(totalCents);
+        
+        calcAll();
+    }
+
+    // Função unificada para Variados, Oferta e Excedente
+    function onMonetaryInput(input) {
+        let rawVal = input.value.replace(/\D/g, "");
+        if(rawVal === "") rawVal = "0";
+        
+        let cents = parseInt(rawVal, 10);
+        
+        input.dataset.cents = cents;
+        input.value = formatCentsToMask(cents);
+        
+        calcAll();
+    }
+
+    function calcAll() {
+        // 1. Entrada Prévia
+        let previa = { bills: {}, variadosCents: 0 };
+        const secPrevia = document.getElementById('sec-entrada_previa');
+        let previaTotalCents = 0; 
+        
+        BILLS.forEach(b => {
+            let row = secPrevia.querySelector(`.row[data-bill="${b}"]`);
+            let qty = parseInt(row.querySelector('.qty-input').value, 10) || 0;
+            previa.bills[b] = qty;
+            previaTotalCents += qty * (b * 100);
+        });
+        previa.variadosCents = parseInt(secPrevia.querySelector('.variados-input').dataset.cents, 10) || 0;
+        previaTotalCents += previa.variadosCents;
+        
+        document.getElementById('total-entrada_previa').innerText = 'R$ ' + formatCentsToMask(previaTotalCents);
+
+        // 2. Processar Saídas
+        let saidasTotais = { bills: {}, variadosCents: 0 };
+        BILLS.forEach(b => saidasTotais.bills[b] = 0);
+
+        document.querySelectorAll('.is-saida').forEach(sec => {
+            let localSubtotalCents = 0; 
+            const isSeparated = sec.querySelector('.sep-checkbox').checked;
+            const secId = sec.id.replace('sec-', '');
+            
+            // Cédulas da Saída
+            BILLS.forEach(b => {
+                let row = sec.querySelector(`.row[data-bill="${b}"]`);
+                let qty = parseInt(row.querySelector('.qty-input').value, 10) || 0;
+                localSubtotalCents += qty * (b * 100);
+                
+                if (!isSeparated) saidasTotais.bills[b] += qty;
+            });
+            
+            // Variados da Saída
+            let varCents = parseInt(sec.querySelector('.variados-input').dataset.cents, 10) || 0;
+            localSubtotalCents += varCents;
+            
+            // Extras da Saída
+            let ofertaCents = parseInt(sec.querySelector('.oferta-input').dataset.cents, 10) || 0;
+            let excedenteCents = parseInt(sec.querySelector('.excedente-input').dataset.cents, 10) || 0;
+
+            // O Real Descontado é o Subtotal menos o que voltou (Oferta) mais o que passou (Excedente)
+            let localRealCents = localSubtotalCents - ofertaCents + excedenteCents;
+
+            if (!isSeparated) {
+                // A diferença de dinheiro físico gerada pela oferta e excedente é embutida no "Variados" geral a ser descontado
+                saidasTotais.variadosCents += (varCents - ofertaCents + excedenteCents);
+            }
+
+            document.getElementById(`subtotal-${secId}`).innerText = 'R$ ' + formatCentsToMask(localSubtotalCents);
+            document.getElementById(`total-${secId}`).innerText = 'R$ ' + formatCentsToMask(localRealCents);
+        });
+
+        // 3. Entrada Pós Saídas
+        const secPos = document.getElementById('sec-entrada_pos');
+        let totalSaldoCents = 0;
+
+        BILLS.forEach(b => {
+            let posQty = previa.bills[b] - saidasTotais.bills[b];
+            let posCents = posQty * (b * 100);
+            totalSaldoCents += posCents;
+
+            let row = secPos.querySelector(`.row[data-bill="${b}"]`);
+            let inputQty = row.querySelector('.qty-input');
+            let inputVal = row.querySelector('.val-input');
+
+            inputQty.value = posQty === 0 ? '' : posQty;
+            inputVal.value = formatCentsToMask(posCents);
+            
+            if (posQty < 0) {
+                inputQty.classList.add('text-danger');
+                inputVal.classList.add('text-danger');
+            } else {
+                inputQty.classList.remove('text-danger');
+                inputVal.classList.remove('text-danger');
+            }
+        });
+
+        // Calculando os Variados finais do Caixa
+        let posVariadosCents = previa.variadosCents - saidasTotais.variadosCents;
+        totalSaldoCents += posVariadosCents;
+
+        let rowVar = secPos.querySelector('.row[data-bill="variados"]');
+        let inputVarVal = rowVar.querySelector('.variados-input');
+        inputVarVal.value = formatCentsToMask(posVariadosCents);
+        
+        if (posVariadosCents < 0) inputVarVal.classList.add('text-danger');
+        else inputVarVal.classList.remove('text-danger');
+
+        document.getElementById('total-entrada_pos').innerText = 'R$ ' + formatCentsToMask(totalSaldoCents);
+        document.getElementById('grand-total').innerText = 'R$ ' + formatCentsToMask(totalSaldoCents);
+    }
+
+    init();
+</script>
+
+</body>
+</html>
