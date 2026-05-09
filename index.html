@@ -10,7 +10,7 @@
             --primary-light: #34495e;
             --addition: #27ae60;      
             --deduction: #e74c3c;     
-            --manual: #e67e22;        /* Cor exclusiva para Saídas Manuais (Laranja) */
+            --manual: #e67e22;        
             --isolated: #3498db;      
             --readonly-bg: #e2e8f0;   
             --bg: #ecf0f1;
@@ -101,7 +101,6 @@
             font-size: 1.05rem;
         }
 
-        /* Subtotal minimizado no cabeçalho */
         .header-total {
             font-weight: 700;
             font-size: 1rem;
@@ -246,7 +245,6 @@
         .diff-label { font-size: 0.9rem; color: rgba(255,255,255,0.8); }
         .diff-value { font-size: 1.1rem; font-weight: 600; }
 
-        /* ESTILOS DE IMPRESSÃO */
         @media print {
             body * { visibility: hidden; }
             #print-area, #print-area * { visibility: visible; }
@@ -278,11 +276,12 @@
             <div class="resumo-row"><span>3. Saldo Positivo:</span> <span class="resumo-val" id="resumo-3">R$ 0,00</span></div>
             <div class="resumo-row"><span>4. Saldo a Depositar:</span> <span class="resumo-val" id="resumo-4">R$ 0,00</span></div>
             <div class="resumo-row"><span>5. Transf. Próx. Mês:</span> <span class="resumo-val" id="resumo-5">R$ 0,00</span></div>
+            <div class="resumo-row"><span>6. Saídas (Manuais):</span> <span class="resumo-val" id="resumo-6">R$ 0,00</span></div>
         </div>
 
         <div class="action-buttons">
             <button class="btn-print" onclick="printReport()">🖨️ Imprimir Relatório</button>
-            <button class="btn-clear" onclick="clearData()">🗑️ Zerar</button>
+            <button class="btn-clear" onclick="clearData()">🗑️ Zerar Tudo</button>
         </div>
     </div>
 
@@ -298,7 +297,6 @@
     </div>
 </div>
 
-<!-- Container oculto que só aparece na hora de imprimir -->
 <div id="print-area"></div>
 
 <script>
@@ -437,21 +435,31 @@
 
     function toggleAccordion(element) { element.parentElement.classList.toggle('active'); }
 
+    // CORREÇÃO DO BUG: Inserir nó direto no DOM em vez de re-renderizar a página inteira
     function addCustomSaida() {
         const title = prompt("Digite o nome da nova saída manual:");
         if (!title) return;
 
         const id = `extra_${Date.now()}`;
-        manualSectionsState.push({ id, title, type: 'saida-manual', editable: true, active: true });
-        renderAllSections();
+        const novaSecao = { id, title, type: 'saida-manual', editable: true, active: true };
+        
+        manualSectionsState.push(novaSecao);
+        
+        const html = generateSectionHTML(novaSecao);
+        document.getElementById('sections-container').insertAdjacentHTML('beforeend', html);
+        
         calcAll();
     }
 
+    // CORREÇÃO DO BUG: Remover nó específico e atualizar array
     function deleteCustomSaida(id, event) {
         event.stopPropagation();
         if(confirm("Tem certeza que deseja excluir esta saída?")) {
             manualSectionsState = manualSectionsState.filter(s => s.id !== id);
-            renderAllSections();
+            
+            const secaoDOM = document.getElementById(`sec-${id}`);
+            if (secaoDOM) secaoDOM.remove();
+            
             calcAll();
         }
     }
@@ -524,11 +532,10 @@
         const el = document.getElementById(`head-tot-${id}`);
         if(el) {
             el.innerText = 'R$ ' + formatCentsToMask(cents);
-            if(isSaida) el.style.color = 'var(--text)'; // Preto para diferenciar que é o contábil
+            if(isSaida) el.style.color = 'var(--text)'; 
         }
     }
 
-    // --- SALVAMENTO E CARREGAMENTO DE DADOS ---
     function saveToStorage() {
         if (isInitializing) return;
         const data = { manualSections: manualSectionsState, values: {}, checks: {} };
@@ -548,7 +555,7 @@
         if (stored) {
             const data = JSON.parse(stored);
             if(data.manualSections) manualSectionsState = data.manualSections;
-            renderAllSections(); // Re-renderiza para criar as sessões manuais que vieram do save
+            renderAllSections(); 
             
             document.querySelectorAll('input[data-save-id]').forEach(input => {
                 const saveId = input.dataset.saveId;
@@ -569,7 +576,6 @@
         }
     }
 
-    // --- MOTOR PRINCIPAL ---
     function calcAll() {
         let transfMesAnteriorCents = 0;
         const secTransfMes = document.getElementById('sec-transf_mes_anterior');
@@ -643,7 +649,6 @@
                 else diffEl.style.color = '#7f8c8d'; 
             }
             
-            // Exibe o Valor Contábil no header da saída
             updateHeaderTotal(secId, realCents, true);
         });
 
@@ -693,7 +698,7 @@
         else if (globalDiffCents > 0) globalDiffEl.style.color = '#2ecc71';
         else globalDiffEl.style.color = '#f1c40f'; 
 
-        // 5. CÁLCULO DO RELATÓRIO DE FECHAMENTO
+        // ATUALIZAÇÃO DO RELATÓRIO DE FECHAMENTO (Agora com "6. Saídas Manuais")
         let resEntradaCents = sumSaidasManuaisRealCents - transfMesAnteriorCents;
         let resEntradaGeralCents = resEntradaCents + transfMesAnteriorCents + missoesRealCents;
         let resSaldoPositivoCents = dizimoRealCents + missoesRealCents;
@@ -704,11 +709,11 @@
         document.getElementById('resumo-3').innerText = 'R$ ' + formatCentsToMask(resSaldoPositivoCents);
         document.getElementById('resumo-4').innerText = 'R$ ' + formatCentsToMask(resSaldoDepositarCents);
         document.getElementById('resumo-5').innerText = 'R$ ' + formatCentsToMask(transfProxMesRealCents);
+        document.getElementById('resumo-6').innerText = 'R$ ' + formatCentsToMask(sumSaidasManuaisRealCents);
 
         saveToStorage();
     }
 
-    // --- GERAÇÃO DE RELATÓRIO PARA IMPRESSÃO ---
     function printReport() {
         const date = new Date().toLocaleDateString('pt-BR');
         let printHtml = `
@@ -746,6 +751,7 @@
                 <div class="print-resumo-row"><span>3. Saldo Positivo (Dízimo + Missões):</span> <strong>${document.getElementById('resumo-3').innerText}</strong></div>
                 <div class="print-resumo-row"><span>4. Saldo a Depositar (Físico Dízimo + Missões):</span> <strong>${document.getElementById('resumo-4').innerText}</strong></div>
                 <div class="print-resumo-row"><span>5. Transferência Próximo Mês:</span> <strong>${document.getElementById('resumo-5').innerText}</strong></div>
+                <div class="print-resumo-row"><span>6. Saídas (Manuais):</span> <strong>${document.getElementById('resumo-6').innerText}</strong></div>
             </div>
 
             <div class="print-total-geral">
@@ -757,7 +763,6 @@
         window.print();
     }
 
-    // Start App
     init();
 </script>
 
