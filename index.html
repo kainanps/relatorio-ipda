@@ -10,6 +10,7 @@
             --primary-light: #34495e;
             --addition: #27ae60;      
             --deduction: #e74c3c;     
+            --isolated: #3498db;      /* Cor para Transferência Mês Anterior */
             --readonly-bg: #e2e8f0;   
             --bg: #ecf0f1;
             --card-bg: #ffffff;
@@ -53,7 +54,7 @@
         .content {
             flex: 1;
             padding: 16px 12px;
-            padding-bottom: 110px; 
+            padding-bottom: 120px; 
         }
 
         .accordion-item {
@@ -66,6 +67,7 @@
         }
 
         .is-entrada { border-left-color: var(--addition); }
+        .is-entrada-isolada { border-left-color: var(--isolated); }
         .is-saida { border-left-color: var(--deduction); }
         .is-pos-saida { border-left-color: var(--primary); background-color: #f8f9fa; }
 
@@ -191,6 +193,7 @@
         }
 
         .is-entrada .val-input { color: var(--addition); }
+        .is-entrada-isolada .val-input { color: var(--isolated); }
         .is-saida .val-input:not(.real-input) { color: var(--deduction); }
         
         input[readonly] {
@@ -241,6 +244,7 @@
         }
 
         .is-entrada .section-total { color: var(--addition); }
+        .is-entrada-isolada .section-total { color: var(--isolated); }
 
         .btn-add-saida {
             width: 100%;
@@ -251,11 +255,42 @@
             font-weight: 600;
             border-radius: 12px;
             margin-top: 10px;
+            margin-bottom: 24px;
             cursor: pointer;
             font-size: 1rem;
         }
 
         .btn-add-saida:active { background-color: #e2e8f0; }
+
+        /* Estilos do Relatório Final */
+        .resumo-box {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-top: 4px solid var(--primary);
+            margin-bottom: 20px;
+        }
+
+        .resumo-box h3 {
+            color: var(--primary);
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .resumo-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 0.95rem;
+            color: var(--text);
+            border-bottom: 1px dashed var(--border);
+        }
+        .resumo-row:last-child { border-bottom: none; }
+        .resumo-row strong { font-weight: 600; }
+        .resumo-val { font-weight: 700; color: var(--primary); }
 
         .total-bar {
             position: fixed;
@@ -291,7 +326,7 @@
     <header>Caixa da Igreja</header>
 
     <div class="content" id="main-content">
-        <!-- Renderizado via JS -->
+        <!-- Acordeões serão renderizados via JS -->
     </div>
 
     <div class="total-bar">
@@ -310,12 +345,14 @@
     const BILLS = [100, 50, 20, 10, 5, 2];
 
     const coreSections = [
+        { id: 'transf_mes_anterior', title: 'Transferência Mês Anterior (Fundo)', type: 'entrada-isolada', editable: true, active: false },
         { id: 'entrada_previa', title: 'Entrada Prévia (Rascunho)', type: 'entrada', editable: true, active: true },
         { id: 'entrada_pos', title: 'Entrada Pós Saídas (Final)', type: 'pos-saida', editable: false, active: true },
         { id: 'dizimo', title: 'Dízimo', type: 'saida', editable: true, active: false },
-        { id: 'missoes', title: 'Culto de Missões', type: 'saida', editable: true, active: false },
-        { id: 'fundacao', title: 'Fundação Reviver', type: 'saida', editable: true, active: false },
-        { id: 'reviver_help', title: 'Reviver Help', type: 'saida', editable: true, active: false }
+        { id: 'missoes', title: 'Culto de Missões', type: 'saida', editable: true, active: false, checked: true },
+        { id: 'fundacao', title: 'Fundação Reviver', type: 'saida', editable: true, active: false, checked: true },
+        { id: 'reviver_help', title: 'Reviver Help', type: 'saida', editable: true, active: false, checked: true },
+        { id: 'transf_proximo_mes', title: 'Transferência Próximo Mês', type: 'saida', editable: true, active: false }
     ];
 
     let dynamicOutId = 0;
@@ -329,16 +366,29 @@
         });
 
         html += `<div id="custom-saidas"></div>`;
-        html += `<button class="btn-add-saida" onclick="addCustomSaida()">+ Adicionar Nova Saída</button>`;
+        html += `<button class="btn-add-saida" onclick="addCustomSaida()">+ Adicionar Saída Manual</button>`;
         
+        // Estrutura do Relatório de Fechamento
+        html += `
+        <div class="resumo-box">
+            <h3>Relatório de Fechamento</h3>
+            <div class="resumo-row"><span>1. Entrada:</span> <span class="resumo-val" id="resumo-1">R$ 0,00</span></div>
+            <div class="resumo-row"><span>2. Entrada Geral:</span> <span class="resumo-val" id="resumo-2">R$ 0,00</span></div>
+            <div class="resumo-row"><span>3. Saldo Positivo:</span> <span class="resumo-val" id="resumo-3">R$ 0,00</span></div>
+            <div class="resumo-row"><span>4. Saldo a Depositar:</span> <span class="resumo-val" id="resumo-4">R$ 0,00</span></div>
+            <div class="resumo-row"><span>5. Transf. Próx. Mês:</span> <span class="resumo-val" id="resumo-5">R$ 0,00</span></div>
+        </div>
+        `;
+
         container.innerHTML = html;
         calcAll(); 
     }
 
     function generateSectionHTML(config) {
-        const { id, title, type, editable, active } = config;
+        const { id, title, type, editable, active, checked } = config;
         const isSaida = type === 'saida';
         const isPosSaida = type === 'pos-saida';
+        const checkStr = checked ? 'checked' : '';
         
         let html = `
         <div class="accordion-item is-${type} ${active ? 'active' : ''}" id="sec-${id}" data-type="${type}">
@@ -347,7 +397,7 @@
                     <span class="section-title">${title}</span>
                     ${isSaida ? `
                     <div class="checkbox-wrapper" onclick="event.stopPropagation()">
-                        <input type="checkbox" id="sep-${id}" class="sep-checkbox" onchange="calcAll()">
+                        <input type="checkbox" id="sep-${id}" class="sep-checkbox" onchange="calcAll()" ${checkStr}>
                         <label for="sep-${id}">Já separado (Não descontar da entrada)</label>
                     </div>` : ''}
                 </div>
@@ -404,7 +454,6 @@
                 </div>
             </div>`;
         } else if (isPosSaida) {
-            // Layout de dois Subtotais para a Entrada Pós Saídas
             html += `
             <div class="section-total">
                 <div class="total-col">
@@ -417,7 +466,7 @@
                 </div>
             </div>`;
         } else {
-            // Rodapé normal para Entradas Prévias
+            // Rodapé para Entradas (Prévia e Mês Anterior)
             html += `
             <div class="section-total">
                 <span>Total da Sessão:</span>
@@ -434,7 +483,7 @@
     }
 
     function addCustomSaida() {
-        const title = prompt("Digite o nome da nova saída:");
+        const title = prompt("Digite o nome da nova saída manual:");
         if (!title) return;
 
         dynamicOutId++;
@@ -449,6 +498,30 @@
         let str = Math.abs(cents).toString().padStart(3, '0');
         let val = str.slice(0, -2) + ',' + str.slice(-2);
         return isNegative ? '-' + val : val;
+    }
+
+    // --- NOVA LÓGICA: Sincronizar Físico com Real ---
+    function syncRealValue(sec) {
+        if (!sec || !sec.classList.contains('is-saida')) return;
+        
+        let localFisicoCents = 0;
+        BILLS.forEach(b => {
+            let row = sec.querySelector(`.row[data-bill="${b}"]`);
+            if (row) {
+                let qty = parseInt(row.querySelector('.qty-input').value, 10) || 0;
+                localFisicoCents += qty * (b * 100);
+            }
+        });
+        let varInput = sec.querySelector('.variados-input');
+        if (varInput) {
+            localFisicoCents += parseInt(varInput.dataset.cents, 10) || 0;
+        }
+        
+        let realInput = sec.querySelector('.real-input');
+        if (realInput) {
+            realInput.dataset.cents = localFisicoCents;
+            realInput.value = formatCentsToMask(localFisicoCents);
+        }
     }
 
     function changeQty(btn, delta) {
@@ -474,6 +547,8 @@
         valInput.dataset.cents = totalCents;
         valInput.value = formatCentsToMask(totalCents);
         
+        // Sincroniza o físico para o contábil sempre que houver digitação de cédula
+        syncRealValue(inputQty.closest('.accordion-item'));
         calcAll();
     }
 
@@ -486,10 +561,27 @@
         input.dataset.cents = cents;
         input.value = formatCentsToMask(cents);
         
+        // Só sincroniza automaticamente se a alteração for nos "Variados" físicos
+        if (input.classList.contains('variados-input')) {
+            syncRealValue(input.closest('.accordion-item'));
+        }
+        
         calcAll();
     }
 
     function calcAll() {
+        // 0. Transferência Mês Anterior (Isolada, não soma nas entradas comuns)
+        let transfMesAnteriorCents = 0;
+        const secTransfMes = document.getElementById('sec-transf_mes_anterior');
+        if (secTransfMes) {
+            BILLS.forEach(b => {
+                let qty = parseInt(secTransfMes.querySelector(`.row[data-bill="${b}"] .qty-input`).value, 10) || 0;
+                transfMesAnteriorCents += qty * (b * 100);
+            });
+            transfMesAnteriorCents += parseInt(secTransfMes.querySelector('.variados-input').dataset.cents, 10) || 0;
+            document.getElementById('total-transf_mes_anterior').innerText = 'R$ ' + formatCentsToMask(transfMesAnteriorCents);
+        }
+
         // 1. Entrada Prévia
         let previa = { bills: {}, variadosCents: 0 };
         const secPrevia = document.getElementById('sec-entrada_previa');
@@ -511,6 +603,12 @@
         BILLS.forEach(b => saidasTotais.bills[b] = 0);
         let globalDiffCents = 0; 
 
+        // Variáveis para o Relatório Final
+        let sumSaidasManuaisRealCents = 0;
+        let missoesRealCents = 0, missoesFisicoCents = 0;
+        let dizimoRealCents = 0, dizimoFisicoCents = 0;
+        let transfProxMesRealCents = 0;
+
         document.querySelectorAll('.is-saida').forEach(sec => {
             let localTotalFisicoCents = 0; 
             const isSeparated = sec.querySelector('.sep-checkbox').checked;
@@ -529,19 +627,24 @@
 
             let realCents = parseInt(sec.querySelector('.real-input').dataset.cents, 10) || 0;
             
-            // LÓGICA INVERTIDA: Valor Real - Total Físico 
-            // Ex: Real (971.20) - Físico (972.00) = -0.80 (Negativo/Perda)
+            // Lógica de Diferença (Valor Real - Físico)
             let diffCents = realCents - localTotalFisicoCents;
             globalDiffCents += diffCents;
 
+            // Extração de dados específicos para o Relatório Final
+            if (secId.startsWith('extra_')) sumSaidasManuaisRealCents += realCents;
+            if (secId === 'missoes') { missoesRealCents = realCents; missoesFisicoCents = localTotalFisicoCents; }
+            if (secId === 'dizimo') { dizimoRealCents = realCents; dizimoFisicoCents = localTotalFisicoCents; }
+            if (secId === 'transf_proximo_mes') { transfProxMesRealCents = realCents; }
+
+            // Atualiza os painéis da Saída
             document.getElementById(`total-${secId}`).innerText = 'R$ ' + formatCentsToMask(localTotalFisicoCents);
             
             let diffEl = document.getElementById(`diff-${secId}`);
             diffEl.innerText = 'R$ ' + formatCentsToMask(diffCents);
             
-            // Cores baseadas na nova lógica
-            if (diffCents < 0) diffEl.style.color = 'var(--deduction)'; // Faltou no caixa (Vermelho)
-            else if (diffCents > 0) diffEl.style.color = 'var(--addition)'; // Sobrou no caixa (Verde)
+            if (diffCents < 0) diffEl.style.color = 'var(--deduction)'; 
+            else if (diffCents > 0) diffEl.style.color = 'var(--addition)'; 
             else diffEl.style.color = '#7f8c8d'; 
         });
 
@@ -580,11 +683,10 @@
         if (posVariadosCents < 0) inputVarVal.classList.add('text-danger');
         else inputVarVal.classList.remove('text-danger');
 
-        // Atualiza os dois Subtotais da Entrada Pós Saída
         document.getElementById('total-entrada_pos').innerText = 'R$ ' + formatCentsToMask(totalSaldoFisicoCents);
         
-        // O Saldo Contábil exato é o Saldo Físico subtraído das Diferenças de Impacto
-        let totalContabilCents = totalSaldoFisicoCents - globalDiffCents;
+        // CÁLCULO ALTERADO POR VOCÊ: + globalDiffCents (Soma devido ao jogo de sinal da diferença)
+        let totalContabilCents = totalSaldoFisicoCents + globalDiffCents;
         document.getElementById('contabil-entrada_pos').innerText = 'R$ ' + formatCentsToMask(totalContabilCents);
 
         // 4. Rodapé Fixo
@@ -593,10 +695,21 @@
         let globalDiffEl = document.getElementById('global-diff');
         globalDiffEl.innerText = 'R$ ' + formatCentsToMask(globalDiffCents);
         
-        // Cores baseadas na nova lógica
         if (globalDiffCents < 0) globalDiffEl.style.color = '#e74c3c'; 
         else if (globalDiffCents > 0) globalDiffEl.style.color = '#2ecc71';
         else globalDiffEl.style.color = '#f1c40f'; 
+
+        // 5. CÁLCULO DO RELATÓRIO DE FECHAMENTO (Baseado nas suas fórmulas exatas)
+        let resEntradaCents = sumSaidasManuaisRealCents - transfMesAnteriorCents;
+        let resEntradaGeralCents = resEntradaCents + transfMesAnteriorCents + missoesRealCents;
+        let resSaldoPositivoCents = dizimoRealCents + missoesRealCents;
+        let resSaldoDepositarCents = dizimoFisicoCents + missoesFisicoCents;
+
+        document.getElementById('resumo-1').innerText = 'R$ ' + formatCentsToMask(resEntradaCents);
+        document.getElementById('resumo-2').innerText = 'R$ ' + formatCentsToMask(resEntradaGeralCents);
+        document.getElementById('resumo-3').innerText = 'R$ ' + formatCentsToMask(resSaldoPositivoCents);
+        document.getElementById('resumo-4').innerText = 'R$ ' + formatCentsToMask(resSaldoDepositarCents);
+        document.getElementById('resumo-5').innerText = 'R$ ' + formatCentsToMask(transfProxMesRealCents);
     }
 
     init();
