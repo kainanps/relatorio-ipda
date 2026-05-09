@@ -53,7 +53,7 @@
         .content {
             flex: 1;
             padding: 16px 12px;
-            padding-bottom: 110px; /* Aumentado para o novo rodapé */
+            padding-bottom: 110px; 
         }
 
         .accordion-item {
@@ -206,7 +206,6 @@
             border-color: transparent;
         }
 
-        /* Estilos da Linha de Valor Real e Rodapé da Sessão */
         .real-value-box {
             background-color: #f8f9fa;
             border-radius: 8px;
@@ -242,7 +241,6 @@
         }
 
         .is-entrada .section-total { color: var(--addition); }
-        .is-pos-saida .section-total { color: var(--primary); }
 
         .btn-add-saida {
             width: 100%;
@@ -284,7 +282,7 @@
         .total-value { font-size: 1.4rem; font-weight: 700; color: var(--addition); }
         
         .diff-label { font-size: 0.9rem; color: rgba(255,255,255,0.8); }
-        .diff-value { font-size: 1.1rem; color: #f1c40f; font-weight: 600; }
+        .diff-value { font-size: 1.1rem; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -302,8 +300,8 @@
             <div class="total-value" id="grand-total">R$ 0,00</div>
         </div>
         <div class="total-row">
-            <div class="diff-label">Diferenças Acumuladas (Físico - Real):</div>
-            <div class="diff-value" id="global-diff">R$ 0,00</div>
+            <div class="diff-label">Diferenças Acumuladas (Impacto):</div>
+            <div class="diff-value" id="global-diff" style="color: #f1c40f;">R$ 0,00</div>
         </div>
     </div>
 </div>
@@ -340,6 +338,7 @@
     function generateSectionHTML(config) {
         const { id, title, type, editable, active } = config;
         const isSaida = type === 'saida';
+        const isPosSaida = type === 'pos-saida';
         
         let html = `
         <div class="accordion-item is-${type} ${active ? 'active' : ''}" id="sec-${id}" data-type="${type}">
@@ -384,7 +383,6 @@
                 </div>
             </div>`;
 
-        // Layout específico para o rodapé das Saídas (com Valor Real e Diferença)
         if (isSaida) {
             html += `
             <div class="row real-value-box">
@@ -401,12 +399,25 @@
                     <span id="total-${id}" style="color: var(--deduction);">R$ 0,00</span>
                 </div>
                 <div class="total-col" style="text-align: right;">
-                    <span class="total-sublabel">Diferença:</span>
+                    <span class="total-sublabel">Diferença (Impacto):</span>
                     <span id="diff-${id}">R$ 0,00</span>
                 </div>
             </div>`;
+        } else if (isPosSaida) {
+            // Layout de dois Subtotais para a Entrada Pós Saídas
+            html += `
+            <div class="section-total">
+                <div class="total-col">
+                    <span class="total-sublabel">Físico Calculado:</span>
+                    <span id="total-${id}" style="color: var(--primary);">R$ 0,00</span>
+                </div>
+                <div class="total-col" style="text-align: right;">
+                    <span class="total-sublabel">Total Contábil:</span>
+                    <span id="contabil-${id}" style="color: var(--primary);">R$ 0,00</span>
+                </div>
+            </div>`;
         } else {
-            // Rodapé normal para Entradas
+            // Rodapé normal para Entradas Prévias
             html += `
             <div class="section-total">
                 <span>Total da Sessão:</span>
@@ -466,7 +477,6 @@
         calcAll();
     }
 
-    // Função unificada para Variados e Valor Real
     function onMonetaryInput(input) {
         let rawVal = input.value.replace(/\D/g, "");
         if(rawVal === "") rawVal = "0";
@@ -499,10 +509,10 @@
         // 2. Saídas e Diferenças
         let saidasTotais = { bills: {}, variadosCents: 0 };
         BILLS.forEach(b => saidasTotais.bills[b] = 0);
-        let globalDiffCents = 0; // Acumulador da barra inferior
+        let globalDiffCents = 0; 
 
         document.querySelectorAll('.is-saida').forEach(sec => {
-            let localTotalFisicoCents = 0; // Quanto dinheiro físico foi separado
+            let localTotalFisicoCents = 0; 
             const isSeparated = sec.querySelector('.sep-checkbox').checked;
             const secId = sec.id.replace('sec-', '');
             
@@ -517,33 +527,32 @@
             localTotalFisicoCents += varCents;
             if (!isSeparated) saidasTotais.variadosCents += varCents;
 
-            // Coleta o Valor Real Contábil
             let realCents = parseInt(sec.querySelector('.real-input').dataset.cents, 10) || 0;
             
-            // Calcula Diferença: Físico Separado - Valor Real
-            let diffCents = localTotalFisicoCents - realCents;
+            // LÓGICA INVERTIDA: Valor Real - Total Físico 
+            // Ex: Real (971.20) - Físico (972.00) = -0.80 (Negativo/Perda)
+            let diffCents = realCents - localTotalFisicoCents;
             globalDiffCents += diffCents;
 
-            // Atualiza os textos da sessão
             document.getElementById(`total-${secId}`).innerText = 'R$ ' + formatCentsToMask(localTotalFisicoCents);
             
             let diffEl = document.getElementById(`diff-${secId}`);
             diffEl.innerText = 'R$ ' + formatCentsToMask(diffCents);
             
-            // Colore a diferença individual
-            if (diffCents > 0) diffEl.style.color = 'var(--addition)'; // Positivo (sobrou físico)
-            else if (diffCents < 0) diffEl.style.color = 'var(--deduction)'; // Negativo (faltou físico)
-            else diffEl.style.color = '#7f8c8d'; // Zerado
+            // Cores baseadas na nova lógica
+            if (diffCents < 0) diffEl.style.color = 'var(--deduction)'; // Faltou no caixa (Vermelho)
+            else if (diffCents > 0) diffEl.style.color = 'var(--addition)'; // Sobrou no caixa (Verde)
+            else diffEl.style.color = '#7f8c8d'; 
         });
 
         // 3. Entrada Pós Saídas
         const secPos = document.getElementById('sec-entrada_pos');
-        let totalSaldoCents = 0;
+        let totalSaldoFisicoCents = 0;
 
         BILLS.forEach(b => {
             let posQty = previa.bills[b] - saidasTotais.bills[b];
             let posCents = posQty * (b * 100);
-            totalSaldoCents += posCents;
+            totalSaldoFisicoCents += posCents;
 
             let row = secPos.querySelector(`.row[data-bill="${b}"]`);
             let inputQty = row.querySelector('.qty-input');
@@ -562,7 +571,7 @@
         });
 
         let posVariadosCents = previa.variadosCents - saidasTotais.variadosCents;
-        totalSaldoCents += posVariadosCents;
+        totalSaldoFisicoCents += posVariadosCents;
 
         let rowVar = secPos.querySelector('.row[data-bill="variados"]');
         let inputVarVal = rowVar.querySelector('.variados-input');
@@ -571,18 +580,23 @@
         if (posVariadosCents < 0) inputVarVal.classList.add('text-danger');
         else inputVarVal.classList.remove('text-danger');
 
-        document.getElementById('total-entrada_pos').innerText = 'R$ ' + formatCentsToMask(totalSaldoCents);
+        // Atualiza os dois Subtotais da Entrada Pós Saída
+        document.getElementById('total-entrada_pos').innerText = 'R$ ' + formatCentsToMask(totalSaldoFisicoCents);
+        
+        // O Saldo Contábil exato é o Saldo Físico subtraído das Diferenças de Impacto
+        let totalContabilCents = totalSaldoFisicoCents - globalDiffCents;
+        document.getElementById('contabil-entrada_pos').innerText = 'R$ ' + formatCentsToMask(totalContabilCents);
 
         // 4. Rodapé Fixo
-        document.getElementById('grand-total').innerText = 'R$ ' + formatCentsToMask(totalSaldoCents);
+        document.getElementById('grand-total').innerText = 'R$ ' + formatCentsToMask(totalSaldoFisicoCents);
         
         let globalDiffEl = document.getElementById('global-diff');
         globalDiffEl.innerText = 'R$ ' + formatCentsToMask(globalDiffCents);
         
-        // Colore a diferença global
-        if (globalDiffCents > 0) globalDiffEl.style.color = '#2ecc71'; 
-        else if (globalDiffCents < 0) globalDiffEl.style.color = '#e74c3c';
-        else globalDiffEl.style.color = '#f1c40f'; // Zerado (Amarelo neutro)
+        // Cores baseadas na nova lógica
+        if (globalDiffCents < 0) globalDiffEl.style.color = '#e74c3c'; 
+        else if (globalDiffCents > 0) globalDiffEl.style.color = '#2ecc71';
+        else globalDiffEl.style.color = '#f1c40f'; 
     }
 
     init();
