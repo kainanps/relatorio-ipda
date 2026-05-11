@@ -271,12 +271,14 @@
         
         <div class="resumo-box">
             <h3>Relatório de Fechamento</h3>
-            <div class="resumo-row"><span>1. Entrada:</span> <span class="resumo-val" id="resumo-1">R$ 0,00</span></div>
-            <div class="resumo-row"><span>2. Entrada Geral:</span> <span class="resumo-val" id="resumo-2">R$ 0,00</span></div>
-            <div class="resumo-row"><span>3. Saldo Positivo:</span> <span class="resumo-val" id="resumo-3">R$ 0,00</span></div>
-            <div class="resumo-row"><span>4. Saldo a Depositar:</span> <span class="resumo-val" id="resumo-4">R$ 0,00</span></div>
-            <div class="resumo-row"><span>5. Transf. Próx. Mês:</span> <span class="resumo-val" id="resumo-5">R$ 0,00</span></div>
-            <div class="resumo-row"><span>6. Saídas (Manuais):</span> <span class="resumo-val" id="resumo-6">R$ 0,00</span></div>
+            <div class="resumo-row"><span>1. Oferta:</span> <span class="resumo-val" id="resumo-1">R$ 0,00</span></div>
+            <div class="resumo-row"><span>2. Entrada:</span> <span class="resumo-val" id="resumo-2">R$ 0,00</span></div>
+            <div class="resumo-row"><span>3. Entrada Geral:</span> <span class="resumo-val" id="resumo-3">R$ 0,00</span></div>
+            <div class="resumo-row"><span>4. Transf. Próx. Mês:</span> <span class="resumo-val" id="resumo-4">R$ 0,00</span></div>
+            <div class="resumo-row"><span>5. Transf. Mês Anterior:</span> <span class="resumo-val" id="resumo-5">R$ 0,00</span></div>
+            <div class="resumo-row"><span>6. Saldo Positivo:</span> <span class="resumo-val" id="resumo-6">R$ 0,00</span></div>
+            <div class="resumo-row"><span>7. Saldo a Depositar:</span> <span class="resumo-val" id="resumo-7">R$ 0,00</span></div>
+            <div class="resumo-row"><span>8. Saídas (Manuais):</span> <span class="resumo-val" id="resumo-8">R$ 0,00</span></div>
         </div>
 
         <div class="action-buttons">
@@ -435,7 +437,6 @@
 
     function toggleAccordion(element) { element.parentElement.classList.toggle('active'); }
 
-    // CORREÇÃO DO BUG: Inserir nó direto no DOM em vez de re-renderizar a página inteira
     function addCustomSaida() {
         const title = prompt("Digite o nome da nova saída manual:");
         if (!title) return;
@@ -451,7 +452,6 @@
         calcAll();
     }
 
-    // CORREÇÃO DO BUG: Remover nó específico e atualizar array
     function deleteCustomSaida(id, event) {
         event.stopPropagation();
         if(confirm("Tem certeza que deseja excluir esta saída?")) {
@@ -698,18 +698,24 @@
         else if (globalDiffCents > 0) globalDiffEl.style.color = '#2ecc71';
         else globalDiffEl.style.color = '#f1c40f'; 
 
-        // ATUALIZAÇÃO DO RELATÓRIO DE FECHAMENTO (Agora com "6. Saídas Manuais")
-        let resEntradaCents = sumSaidasManuaisRealCents - transfMesAnteriorCents;
+        // NOVO CÁLCULO DO RELATÓRIO DE FECHAMENTO (Aplicando suas fórmulas)
+        let resOfertaCents = sumSaidasManuaisRealCents - transfMesAnteriorCents;
+        let resEntradaCents = resOfertaCents + dizimoRealCents;
         let resEntradaGeralCents = resEntradaCents + transfMesAnteriorCents + missoesRealCents;
+        let resTransfProxMesCents = transfProxMesRealCents;
+        let resTransfMesAnteriorCents = transfMesAnteriorCents;
         let resSaldoPositivoCents = dizimoRealCents + missoesRealCents;
         let resSaldoDepositarCents = dizimoFisicoCents + missoesFisicoCents;
+        let resSaidasManuaisCents = sumSaidasManuaisRealCents;
 
-        document.getElementById('resumo-1').innerText = 'R$ ' + formatCentsToMask(resEntradaCents);
-        document.getElementById('resumo-2').innerText = 'R$ ' + formatCentsToMask(resEntradaGeralCents);
-        document.getElementById('resumo-3').innerText = 'R$ ' + formatCentsToMask(resSaldoPositivoCents);
-        document.getElementById('resumo-4').innerText = 'R$ ' + formatCentsToMask(resSaldoDepositarCents);
-        document.getElementById('resumo-5').innerText = 'R$ ' + formatCentsToMask(transfProxMesRealCents);
-        document.getElementById('resumo-6').innerText = 'R$ ' + formatCentsToMask(sumSaidasManuaisRealCents);
+        document.getElementById('resumo-1').innerText = 'R$ ' + formatCentsToMask(resOfertaCents);
+        document.getElementById('resumo-2').innerText = 'R$ ' + formatCentsToMask(resEntradaCents);
+        document.getElementById('resumo-3').innerText = 'R$ ' + formatCentsToMask(resEntradaGeralCents);
+        document.getElementById('resumo-4').innerText = 'R$ ' + formatCentsToMask(resTransfProxMesCents);
+        document.getElementById('resumo-5').innerText = 'R$ ' + formatCentsToMask(resTransfMesAnteriorCents);
+        document.getElementById('resumo-6').innerText = 'R$ ' + formatCentsToMask(resSaldoPositivoCents);
+        document.getElementById('resumo-7').innerText = 'R$ ' + formatCentsToMask(resSaldoDepositarCents);
+        document.getElementById('resumo-8').innerText = 'R$ ' + formatCentsToMask(resSaidasManuaisCents);
 
         saveToStorage();
     }
@@ -746,12 +752,14 @@
             
             <div class="print-resumo">
                 <h3 style="margin-top:0; border-bottom: 1px solid #000; padding-bottom: 5px;">Relatório de Fechamento (Cálculo Oficial)</h3>
-                <div class="print-resumo-row"><span>1. Entrada (Saídas Manuais - Transf. Ant.):</span> <strong>${document.getElementById('resumo-1').innerText}</strong></div>
-                <div class="print-resumo-row"><span>2. Entrada Geral:</span> <strong>${document.getElementById('resumo-2').innerText}</strong></div>
-                <div class="print-resumo-row"><span>3. Saldo Positivo (Dízimo + Missões):</span> <strong>${document.getElementById('resumo-3').innerText}</strong></div>
-                <div class="print-resumo-row"><span>4. Saldo a Depositar (Físico Dízimo + Missões):</span> <strong>${document.getElementById('resumo-4').innerText}</strong></div>
-                <div class="print-resumo-row"><span>5. Transferência Próximo Mês:</span> <strong>${document.getElementById('resumo-5').innerText}</strong></div>
-                <div class="print-resumo-row"><span>6. Saídas (Manuais):</span> <strong>${document.getElementById('resumo-6').innerText}</strong></div>
+                <div class="print-resumo-row"><span>1. Oferta:</span> <strong>${document.getElementById('resumo-1').innerText}</strong></div>
+                <div class="print-resumo-row"><span>2. Entrada:</span> <strong>${document.getElementById('resumo-2').innerText}</strong></div>
+                <div class="print-resumo-row"><span>3. Entrada Geral:</span> <strong>${document.getElementById('resumo-3').innerText}</strong></div>
+                <div class="print-resumo-row"><span>4. Transferência Próximo Mês:</span> <strong>${document.getElementById('resumo-4').innerText}</strong></div>
+                <div class="print-resumo-row"><span>5. Transferência Mês Anterior:</span> <strong>${document.getElementById('resumo-5').innerText}</strong></div>
+                <div class="print-resumo-row"><span>6. Saldo Positivo:</span> <strong>${document.getElementById('resumo-6').innerText}</strong></div>
+                <div class="print-resumo-row"><span>7. Saldo a Depositar:</span> <strong>${document.getElementById('resumo-7').innerText}</strong></div>
+                <div class="print-resumo-row"><span>8. Saídas (Manuais):</span> <strong>${document.getElementById('resumo-8').innerText}</strong></div>
             </div>
 
             <div class="print-total-geral">
